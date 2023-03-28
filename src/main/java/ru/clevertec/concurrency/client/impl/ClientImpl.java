@@ -22,24 +22,25 @@ import java.util.stream.Stream;
  * @author Babrovich Siarhey on 24.03.2023
  */
 public class ClientImpl implements Client {
-    private final List<Integer> integers;
+    private final List<Integer> indexes;
     private final AtomicInteger accumulator;
     private final ExecutorService service;
-    private final Lock lock = new ReentrantLock();
+    private final Lock lock;
     private List<CompletableFuture<Void>> futures;
 
     public ClientImpl(int limit, int threadsCount) {
         this.service = Executors.newFixedThreadPool(threadsCount);
         this.accumulator = new AtomicInteger();
-        this.integers = new ArrayList<>(Stream.iterate(1, x -> x + 1)
+        this.lock = new ReentrantLock();
+        this.indexes = new ArrayList<>(Stream.iterate(1, x -> x + 1)
                 .limit(limit)
                 .toList());
     }
 
     @Override
-    public void sendRequests(Server server) {
+    public void sendRequests(final Server server) {
         final Random random = new Random();
-        futures = IntStream.range(0, integers.size())
+        this.futures = IntStream.range(0, indexes.size())
                 .mapToObj(x -> getNext(random))
                 .parallel()
                 .map(i -> Request.builder()
@@ -52,27 +53,36 @@ public class ClientImpl implements Client {
 
     @Override
     public int getSum() {
-        futures.forEach(f -> {
+        this.futures.forEach(f -> {
             try {
                 f.get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new ClientException(e);
             }
         });
-        return accumulator.get();
+        return this.accumulator.get();
     }
 
+    /**
+     * Generates a random index from 0 to size of indexes and returns the removed element from indexes at index
+     * @param random - random generator
+     * @return removed element
+     */
     private Integer getNext(Random random) {
-        lock.lock();
+        this.lock.lock();
         try {
-            int rnd = random.nextInt(integers.size());
-            return integers.remove(rnd);
+            final int rnd = random.nextInt(indexes.size());
+            return this.indexes.remove(rnd);
         }finally {
-            lock.unlock();
+            this.lock.unlock();
         }
     }
 
+    /**
+     * Returns size of indexes
+     * @return size
+     */
     public int getSize() {
-        return integers.size();
+        return indexes.size();
     }
 }

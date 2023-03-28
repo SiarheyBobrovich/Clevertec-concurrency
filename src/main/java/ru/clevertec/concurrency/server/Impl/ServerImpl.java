@@ -17,22 +17,25 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Babrovich Siarhey on 24.03.2023
  */
 public class ServerImpl implements Server {
+
     private final Random random;
     private final List<Integer> dao;
-    private final Lock lock = new ReentrantLock();
+    private final Lock lock;
+
     public ServerImpl() {
-        random = new Random();
-        dao = new ArrayList<>();
+        this.random = new Random();
+        this.dao = new ArrayList<>();
+        this.lock = new ReentrantLock();
     }
 
     @Override
-    public Response process(Request request) {
+    public Response process(final Request request) {
         if (request == null) {
             throw new ServerNullException("Request must not be null");
         }
-        int index = request.getIndex();
+        final int index = request.getIndex();
         sleep();
-        int daoSize = add(index);
+        final int daoSize = add(index);
         return Response.builder()
                 .size(daoSize)
                 .build();
@@ -40,11 +43,14 @@ public class ServerImpl implements Server {
 
     @Override
     public List<Integer> getResult() {
-        return dao;
+        return this.dao;
     }
 
+    /**
+     * Causes the thread to sleep between 100 and 1000 ms
+     */
     private void sleep() {
-        int sleepTime = random.nextInt(100, 1001);
+        final int sleepTime = random.nextInt(100, 1001);
         try {
             TimeUnit.MILLISECONDS.sleep(sleepTime);
         } catch (InterruptedException e) {
@@ -52,13 +58,18 @@ public class ServerImpl implements Server {
         }
     }
 
+    /**
+     * Adds an index to the dao and returns the size of the dao
+     * @param index added index
+     * @return size
+     */
     private int add(int index) {
-        lock.lock();
+        this.lock.lock();
         try {
-            dao.add(index);
-            return dao.size();
+            this.dao.add(index);
+            return this.dao.size();
         }finally {
-            lock.unlock();
+            this.lock.unlock();
         }
     }
 }
